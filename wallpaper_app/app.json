@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "DepthScape 3D Wallpapers",
+    "slug": "depthscape-3d-wallpapers",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#081420"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.student.depthscape"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

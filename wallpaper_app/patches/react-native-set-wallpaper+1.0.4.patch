@@ -1,0 +1,402 @@
+diff --git a/node_modules/react-native-set-wallpaper/android/build.gradle b/node_modules/react-native-set-wallpaper/android/build.gradle
+index 41963fa..dfe0f9b 100644
+--- a/node_modules/react-native-set-wallpaper/android/build.gradle
++++ b/node_modules/react-native-set-wallpaper/android/build.gradle
+@@ -1,35 +1,28 @@
+-buildscript {
+-  repositories {
+-    jcenter()
+-  }
++apply plugin: 'com.android.library'
+ 
+-  dependencies {
+-    classpath 'com.android.tools.build:gradle:1.1.3'
+-  }
++def safeExtGet(name, fallback) {
++  return rootProject.ext.has(name) ? rootProject.ext.get(name) : fallback
+ }
+ 
+-apply plugin: 'com.android.library'
+-
+ android {
+-  compileSdkVersion 23
+-  buildToolsVersion "23.0.1"
++  namespace 'com.appxbeta.siddsarkar.reactnative.wallpaper'
++  compileSdkVersion safeExtGet('compileSdkVersion', 35)
+ 
+   defaultConfig {
+-    minSdkVersion 16
+-    targetSdkVersion 22
+-    versionCode 1
+-    versionName "1.0"
++    minSdkVersion safeExtGet('minSdkVersion', 24)
++    targetSdkVersion safeExtGet('targetSdkVersion', 35)
+   }
++
+   lintOptions {
+     abortOnError false
+   }
+ }
+ 
+ repositories {
++  google()
+   mavenCentral()
+ }
+ 
+ dependencies {
+-  implementation "com.facebook.react:react-native:+"
+-  implementation 'com.github.bumptech.glide:glide:3.7.0'
++  implementation 'com.facebook.react:react-android'
+ }
+\ No newline at end of file
+diff --git a/node_modules/react-native-set-wallpaper/android/src/main/AndroidManifest.xml b/node_modules/react-native-set-wallpaper/android/src/main/AndroidManifest.xml
+index 2577bb1..7b687ae 100644
+--- a/node_modules/react-native-set-wallpaper/android/src/main/AndroidManifest.xml
++++ b/node_modules/react-native-set-wallpaper/android/src/main/AndroidManifest.xml
+@@ -1,9 +1,3 @@
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    package="com.appxbeta.siddsarkar.reactnative.wallpaper">
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+-    <application>
+-        <meta-data
+-            android:name="com.appxbeta.siddsarkar.reactnative.wallpaper.MyGlideModule"
+-            android:value="GlideModule" />
+-    </application>
+ </manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/MyGlideModule.java b/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/MyGlideModule.java
+deleted file mode 100644
+index fe73efa..0000000
+--- a/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/MyGlideModule.java
++++ /dev/null
+@@ -1,31 +0,0 @@
+-package com.appxbeta.siddsarkar.reactnative.wallpaper;
+-
+-import android.content.Context;
+-
+-import com.bumptech.glide.Glide;
+-import com.bumptech.glide.GlideBuilder;
+-import com.bumptech.glide.module.GlideModule;
+-import com.bumptech.glide.load.DecodeFormat;
+-import com.bumptech.glide.load.engine.cache.MemorySizeCalculator;
+-import com.bumptech.glide.load.engine.cache.LruResourceCache;
+-import com.bumptech.glide.load.engine.bitmap_recycle.LruBitmapPool;
+-import com.bumptech.glide.load.engine.cache.InternalCacheDiskCacheFactory;
+-
+- public class MyGlideModule implements GlideModule {
+-    @Override
+-    public void applyOptions(Context context, GlideBuilder builder) {
+-        MemorySizeCalculator calculator = new MemorySizeCalculator(context);
+-        int defaultMemoryCacheSize = calculator.getMemoryCacheSize();
+-        int defaultBitmapPoolSize = calculator.getBitmapPoolSize();
+-        int defaultDiskCacheSize = calculator.getMemoryCacheSize();
+-
+-        builder.setDecodeFormat(DecodeFormat.PREFER_ARGB_8888);
+-        builder.setMemoryCache(new LruResourceCache(defaultMemoryCacheSize));
+-        builder.setBitmapPool(new LruBitmapPool(defaultBitmapPoolSize));
+-        builder.setDiskCache(new InternalCacheDiskCacheFactory(context, defaultDiskCacheSize));
+-    }
+-     @Override
+-     public void registerComponents(Context context,Glide glide){
+-
+-     }
+-}
+\ No newline at end of file
+diff --git a/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/WallPaperManager.java b/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/WallPaperManager.java
+index 7de43ba..8608d43 100644
+--- a/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/WallPaperManager.java
++++ b/node_modules/react-native-set-wallpaper/android/src/main/java/com/cunyutech/hollyliu/reactnative/wallpaper/WallPaperManager.java
+@@ -1,65 +1,41 @@
+ package com.appxbeta.siddsarkar.reactnative.wallpaper;
+ 
+-import android.graphics.drawable.Drawable;
+-import android.net.Uri;
+-import android.util.Log;
+ import android.util.Base64;
+-import android.widget.ImageView;
+ import android.graphics.Bitmap;
+-import android.graphics.Canvas;
+-import android.graphics.PixelFormat;
+-import android.app.Activity;
+ import android.app.WallpaperManager;
+ import android.graphics.BitmapFactory;
+ 
+-import com.bumptech.glide.Glide;
+-import com.bumptech.glide.load.model.GlideUrl;
+-import com.bumptech.glide.load.model.LazyHeaders;
+-import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+-import com.bumptech.glide.request.RequestListener;
+-import com.bumptech.glide.request.animation.GlideAnimation;
+-import com.bumptech.glide.request.target.Target;
+-import com.bumptech.glide.request.target.SimpleTarget;
+-
+ import com.facebook.react.bridge.ReactApplicationContext;
+ import com.facebook.react.bridge.ReactContextBaseJavaModule;
+ import com.facebook.react.bridge.Callback;
+ import com.facebook.react.bridge.ReadableMap;
+-import com.facebook.react.bridge.ReadableMapKeySetIterator;
+ import com.facebook.react.bridge.WritableMap;
+ import com.facebook.react.bridge.ReactMethod;
+ import com.facebook.react.bridge.Arguments;
+-import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
+-import com.facebook.react.views.imagehelper.ImageSource;
+ 
+-import java.util.Map;
++import java.io.FileInputStream;
++import java.io.InputStream;
++import java.net.HttpURLConnection;
++import java.net.URL;
+ 
+ public class WallPaperManager extends ReactContextBaseJavaModule {
+ 
+     private final ReactApplicationContext reactContext;
+-    private WallpaperManager wallpaperManager;
++    private final WallpaperManager wallpaperManager;
+     private Callback rctCallback = null;
+-    private ReadableMap rctParams;
+-    private ResourceDrawableIdHelper mResourceDrawableIdHelper;
+-    private Uri mUri;
+-    private ImageView imgView;
+-    private ReactApplicationContext mApplicationContext;
+-    private Activity mCurrentActivity;
+ 
+     public WallPaperManager(ReactApplicationContext reactContext) {
+         super(reactContext);
+         this.reactContext = reactContext;
+-        mApplicationContext = getReactApplicationContext();
+-
+-        wallpaperManager = WallpaperManager.getInstance(mApplicationContext);
+-        imgView = new ImageView(mApplicationContext);
++        wallpaperManager = WallpaperManager.getInstance(reactContext);
+     }
++
+     @Override
+     public String getName() {
+         return "WallPaperManager";
+     }
+ 
+-    public void sendMessage(String status, String msg, String url){
++    private void sendMessage(String status, String msg, String url){
+         if(rctCallback!=null){
+             WritableMap map = Arguments.createMap();
+             map.putString("status", status);
+@@ -72,13 +48,19 @@ public class WallPaperManager extends ReactContextBaseJavaModule {
+ 
+     @ReactMethod
+     public void setWallpaper(final ReadableMap params, Callback callback){
+-
+         final String source = params.hasKey("uri") ? params.getString("uri") : null;
+-        ReadableMap headers = params.hasKey("headers") ? params.getMap("headers") : null;
+ 
+-        if(rctCallback!=null){
++        if (source == null || source.isEmpty()) {
+             WritableMap map = Arguments.createMap();
++            map.putString("status", "error");
++            map.putString("msg", "uri is required");
++            map.putString("url", source);
++            callback.invoke(map);
++            return;
++        }
+ 
++        if(rctCallback!=null){
++            WritableMap map = Arguments.createMap();
+             map.putString("status", "error");
+             map.putString("msg", "busy");
+             map.putString("url",source);
+@@ -87,159 +69,47 @@ public class WallPaperManager extends ReactContextBaseJavaModule {
+         }
+ 
+         rctCallback = callback;
+-        rctParams = params;
+-
+-        final SimpleTarget<byte[]> simpleTarget = this.getSimpleTarget(source);
+-        mCurrentActivity = getCurrentActivity();
+-        if(mCurrentActivity==null){
+-            sendMessage("error","CurrentActivity is null",source);
+-        }
+-
+-        //handle base64
+-        if ("data:image/png;base64,".startsWith(source)){
+-            mCurrentActivity.runOnUiThread(new Runnable() {
+-                public void run() {
+-                    ThreadUtil.assertMainThread();
+-                    try{
+-                        Glide
+-                            .with(mApplicationContext)
+-                            .load(Base64.decode(source.replaceAll("data:image\\/.*;base64,", ""), Base64.DEFAULT))
+-                            .asBitmap()
+-                            .toBytes()
+-                            .centerCrop()
+-                            .into(simpleTarget);
+-                    }catch (Exception e) {
+-                        sendMessage("error","Exception in Glide：" + e.getMessage(),source);
++        new Thread(new Runnable() {
++            @Override
++            public void run() {
++                InputStream inputStream = null;
++
++                try {
++                    Bitmap bitmap;
++
++                    if (source.startsWith("data:image")) {
++                        byte[] data = Base64.decode(source.replaceAll("data:image\\/.*;base64,", ""), Base64.DEFAULT);
++                        bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
++                    } else if (source.startsWith("http://") || source.startsWith("https://")) {
++                        HttpURLConnection connection = (HttpURLConnection) new URL(source).openConnection();
++                        connection.setDoInput(true);
++                        connection.connect();
++                        inputStream = connection.getInputStream();
++                        bitmap = BitmapFactory.decodeStream(inputStream);
++                    } else {
++                        String filePath = source.startsWith("file://") ? source.substring(7) : source;
++                        inputStream = new FileInputStream(filePath);
++                        bitmap = BitmapFactory.decodeStream(inputStream);
+                     }
+-                }
+-            });
+ 
+-            return;
+-        }
+-
+-        boolean useStorageFile = false ;
+-
+-        // handle bundled app resources
+-        try {
+-            mUri = Uri.parse(source);
+-            // Verify scheme is set, so that relative uri (used by static resources) are not handled.
+-            if (mUri.getScheme() == null) {
+-                mUri = null;
+-            } else if(
+-                    !mUri.getScheme().equals("http") &&
+-                            !mUri.getScheme().equals("https")
+-                    ){
+-                useStorageFile = true;
+-            }
+-        } catch (Exception e) {
+-            // ignore malformed uri, then attempt to extract resource ID.
+-        }
+-
+-        if (mUri == null) {
+-            ImageSource is = new ImageSource(this.getReactApplicationContext(),source);
+-            if(is.isResource()){
+-                int resId = mResourceDrawableIdHelper.getInstance().getResourceDrawableId(this.getReactApplicationContext(),source);
+-                Bitmap mBitmap = BitmapFactory.decodeResource(this.getReactApplicationContext().getResources(), resId);
+-                try
+-                {
+-                    wallpaperManager.setBitmap(mBitmap);
+-                    sendMessage("success","Set Wallpaper Success",source);
+-                }
+-                catch (Exception e)
+-                {
+-                    sendMessage("error","Exception in SimpleTarget：" + e.getMessage(),source);
+-                    return;
+-                }
+-                return;
+-            }
+-
+-            mUri = is.getUri();
+-            mCurrentActivity.runOnUiThread(new Runnable() {
+-                public void run() {
+-                    ThreadUtil.assertMainThread();
+-                    try{
+-                        Glide
+-                            .with(mApplicationContext)
+-                            .load(mUri)
+-                            .asBitmap()
+-                            .toBytes()
+-                            .centerCrop()
+-                            .into(simpleTarget);
+-                    }catch (Exception e) {
+-                        sendMessage("error","Exception in Glide：" + e.getMessage(),source);
+-                    }
+-                }
+-            });
+-        } else if (useStorageFile) {
+-            mCurrentActivity.runOnUiThread(new Runnable() {
+-                public void run() {
+-                    ThreadUtil.assertMainThread();
+-                    try{
+-                        Glide
+-                            .with(mApplicationContext)
+-                            .load(mUri)
+-                            .asBitmap()
+-                            .toBytes()
+-                            .centerCrop()
+-                            .into(simpleTarget);
+-                    }catch (Exception e) {
+-                        sendMessage("error","Exception in Glide：" + e.getMessage(),source);
+-                    }
+-                }
+-            });
+-        } else {
+-            // Handle an http / https address
+-            final LazyHeaders.Builder lazyHeaders = new LazyHeaders.Builder();
+-
+-            if(headers != null){
+-                ReadableMapKeySetIterator it = headers.keySetIterator();
+-                Log.d("next headers", String.valueOf(it.hasNextKey()));
+-                while(it.hasNextKey()){
+-                    String Key = it.nextKey();
+-                    lazyHeaders.addHeader(Key, headers.getString(Key));
+-                }
+-            }
+-            mCurrentActivity.runOnUiThread(new Runnable() {
+-                public void run() {
+-                    ThreadUtil.assertMainThread();
+-                    try{
+-                        Glide
+-                            .with(mApplicationContext)
+-                            .load(new GlideUrl(mUri.toString(), lazyHeaders.build()))
+-                            .asBitmap()
+-                            .toBytes()
+-                            .centerCrop()
+-                            .into(simpleTarget);
+-                    }catch (Exception e) {
+-                        sendMessage("error","Exception in Glide：" + e.getMessage(),source);
++                    if (bitmap == null) {
++                        sendMessage("error", "Unable to decode image", source);
++                        return;
+                     }
+-                }
+-            });
+-        }
+-    }
+ 
+-    private SimpleTarget<byte[]> getSimpleTarget(final String source){
+-        return new SimpleTarget<byte[]>(1080, 1920){
+-            @Override
+-            public void onResourceReady(byte[] resource, GlideAnimation<? super byte[]> glideAnimation) {
+-                Bitmap bitmap = BitmapFactory.decodeByteArray(resource, 0, resource.length);
+-                try
+-                {
+                     wallpaperManager.setBitmap(bitmap);
+-                    sendMessage("success","Set Wallpaper Success",source);
+-                }
+-                catch (Exception e)
+-                {
+-                    sendMessage("error","Exception in SimpleTarget：" + e.getMessage(),source);
+-                    return;
++                    sendMessage("success", "Set Wallpaper Success", source);
++                } catch (Exception e) {
++                    sendMessage("error", e.getMessage(), source);
++                } finally {
++                    if (inputStream != null) {
++                        try {
++                            inputStream.close();
++                        } catch (Exception ignored) {
++                        }
++                    }
+                 }
+             }
+-
+-            @Override
+-            public void onLoadFailed(Exception e, Drawable errorDrawable) {
+-                // Do nothing.
+-                sendMessage("error","Set Wallpaper Failed："+ e.getMessage() ,source);
+-            }
+-        };
++        }).start();
+     }
+-};
++}
